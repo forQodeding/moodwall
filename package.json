@@ -1,0 +1,18 @@
+﻿{
+  "name": "moodwall-custom-backend",
+  "version": "2.0.0",
+  "description": "Realtime Anonymous Confession Wall with Self-Hosted Custom Backend, REST API, WebSocket Realtime, and Admin Studio",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  },
+  "keywords": ["realtime", "custom-backend", "admin-studio", "websocket", "express"],
+  "author": "Owner",
+  "license": "MIT"
+}

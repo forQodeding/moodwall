@@ -1,0 +1,585 @@
+﻿<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoodWall Studio — ระบบจัดการฐานข้อมูลหลังบ้าน</title>
+  <meta name="description" content="ระบบจัดการฐานข้อมูลหลังบ้านแบบ Custom Backend ควบคุม แก้ไข และลบข้อมูลได้แบบ Realtime">
+  
+  <!-- Google Fonts: Outfit + Noto Sans Thai -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Admin Specific Styling */
+    .admin-badge {
+      background: rgba(168, 85, 247, 0.15);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      color: #c084fc;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .admin-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      backdrop-filter: var(--glass-blur);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-hover);
+    }
+
+    .stat-icon {
+      font-size: 32px;
+      width: 52px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-info h4 {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .stat-info .stat-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.2;
+      margin-top: 2px;
+    }
+
+    .admin-controls-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      backdrop-filter: var(--glass-blur);
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 240px;
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: 999px;
+      padding: 10px 16px 10px 40px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-box input:focus {
+      border-color: #a855f7;
+    }
+
+    .search-box-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    .filter-dropdown-group {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .select-dropdown {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: 999px;
+      padding: 10px 16px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .select-dropdown option {
+      background: var(--bg-secondary);
+      color: var(--text-main);
+    }
+
+    .admin-table-wrapper {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      overflow-x: auto;
+      backdrop-filter: var(--glass-blur);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+      min-width: 650px;
+    }
+
+    .admin-table th {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 16px 20px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    .admin-table td {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      vertical-align: middle;
+    }
+
+    .admin-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .admin-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .table-content-preview {
+      max-width: 380px;
+      color: var(--text-main);
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .action-btns {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-action-edit {
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: #818cf8;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-action-edit:hover {
+      background: rgba(99, 102, 241, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .btn-action-delete {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-action-delete:hover {
+      background: rgba(239, 68, 68, 0.3);
+      transform: translateY(-1px);
+    }
+
+    /* Auth Gate Card */
+    .auth-gate-container {
+      max-width: 440px;
+      margin: 60px auto;
+      background: var(--bg-card);
+      border: 1px solid var(--border-hover);
+      border-radius: var(--radius-lg);
+      padding: 36px 28px;
+      text-align: center;
+      backdrop-filter: var(--glass-blur);
+      box-shadow: var(--shadow-lg);
+      animation: scaleUp 0.35s ease-out;
+    }
+
+    .auth-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .auth-gate-container h3 {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+
+    .auth-gate-container p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    .pin-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .pin-input-group input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      font-size: 18px;
+      text-align: center;
+      letter-spacing: 4px;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .pin-input-group input:focus {
+      border-color: #a855f7;
+      box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
+    }
+
+    .hint-badge {
+      display: inline-block;
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+  </style>
+</head>
+<body>
+  <!-- Ambient background glowing blobs -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+  <div class="ambient-glow glow-3"></div>
+
+  <!-- Navigation / Header -->
+  <header class="navbar">
+    <div class="container navbar-content">
+      <div class="logo">
+        <span class="logo-icon">🛡️</span>
+        <div class="logo-text">
+          <h1>MoodWall Studio</h1>
+          <p>ระบบจัดการฐานข้อมูลหลังบ้าน (Owner Panel)</p>
+        </div>
+        <span class="admin-badge">CUSTOM BACKEND</span>
+      </div>
+      <div class="nav-actions">
+        <div class="realtime-badge" id="adminRealtimeStatus">
+          <span class="status-dot"></span>
+          <span class="status-text">Realtime Live</span>
+        </div>
+        <a href="index.html" class="btn btn-secondary">
+          <span>🏠 ดูหน้าเว็บหลัก</span>
+        </a>
+        <button class="btn btn-secondary" id="logoutBtn" style="display: none;">
+          <span>🚪 ออกจากระบบ</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Content Container -->
+  <div class="container" style="padding-top: 32px; padding-bottom: 60px;">
+
+    <!-- 1. LOGIN / PASSCODE GATE -->
+    <div id="authGate" class="auth-gate-container">
+      <div class="auth-icon">🔐</div>
+      <h3>เข้าสู่ระบบผู้ดูแลหลังบ้าน</h3>
+      <p>กรุณากรอกรหัสผ่านผู้ดูแลระบบ (Admin Passcode) เพื่อเข้าจัดการฐานข้อมูล</p>
+      
+      <form id="adminLoginForm">
+        <div class="pin-input-group">
+          <input type="password" id="adminPassInput" placeholder="กรอกรหัสผ่านหลังบ้าน" autocomplete="current-password" autofocus required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">
+          <span>🔓 ปลดล็อกเข้าสู่ระบบ</span>
+        </button>
+      </form>
+      <span class="hint-badge">💡 รหัสผ่านเริ่มต้นคือ: <code>admin1234</code></span>
+    </div>
+
+    <!-- 2. MAIN ADMIN DASHBOARD -->
+    <div id="adminDashboard" class="hidden">
+      
+      <!-- Stats Row -->
+      <div class="admin-stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">📝</div>
+          <div class="stat-info">
+            <h4>โพสต์ทั้งหมดในระบบ</h4>
+            <div class="stat-value" id="totalPostsStat">0</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">❤️</div>
+          <div class="stat-info">
+            <h4>ยอดส่งกำลังใจรวม</h4>
+            <div class="stat-value" id="totalLikesStat">0</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">🌟</div>
+          <div class="stat-info">
+            <h4>อารมณ์ที่คนโพสต์มากที่สุด</h4>
+            <div class="stat-value" id="topMoodStat">-</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">🗄️</div>
+          <div class="stat-info">
+            <h4>แหล่งเก็บข้อมูล (Database)</h4>
+            <div class="stat-value" style="font-size: 15px; color: #a855f7; margin-top: 6px;">data/posts.json</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls & Filter Toolbar -->
+      <div class="admin-controls-bar">
+        <div class="search-box">
+          <span class="search-box-icon">🔍</span>
+          <input type="text" id="adminSearchInput" placeholder="ค้นหาข้อความหรือ ID โพสต์...">
+        </div>
+
+        <div class="filter-dropdown-group">
+          <select id="adminMoodFilter" class="select-dropdown">
+            <option value="all">🌟 ทุกหมวดอารมณ์</option>
+            <option value="happy">😊 มีความสุข</option>
+            <option value="stressed">🤯 เครียด/งานเยอะ</option>
+            <option value="sleepy">😴 ง่วงนอน/เพลีย</option>
+            <option value="fire">🔥 มีไฟ/สู้ตาย</option>
+            <option value="sad">😭 ต้องการกำลังใจ</option>
+          </select>
+
+          <button class="btn btn-primary" id="openInsertModalBtn" title="เพิ่มโพสต์ใหม่จากหลังบ้าน">
+            <span>➕ เพิ่มแถวข้อมูล (Insert)</span>
+          </button>
+
+          <button class="btn btn-secondary" id="refreshBtn" title="โหลดข้อมูลใหม่จาก Server">
+            <span>🔄 รีเฟรช</span>
+          </button>
+
+          <button class="btn btn-secondary" id="resetDbBtn" title="รีเซ็ตข้อมูลทั้งหมดกลับเป็นค่าเริ่มต้น" style="color: #f87171;">
+            <span>⚠️ รีเซ็ตฐานข้อมูล</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Data Table (เหมือน Supabase Table Editor) -->
+      <div class="admin-table-wrapper">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>หมวดอารมณ์ (Mood)</th>
+              <th>ข้อความเนื้อหา (Content)</th>
+              <th>ยอดส่งกำลังใจ (Likes)</th>
+              <th>เวลาที่บันทึก (Created At)</th>
+              <th style="text-align: right;">การจัดการแถว (Actions)</th>
+            </tr>
+          </thead>
+          <tbody id="adminPostsTableBody">
+            <!-- Dynamic rows will be inserted here -->
+          </tbody>
+        </table>
+
+        <!-- Loading State for Admin Table -->
+        <div id="adminTableLoading" class="loading-state" style="margin: 20px auto;">
+          <div class="spinner"></div>
+          <p>กำลังโหลดข้อมูลจากฐานข้อมูล Server...</p>
+        </div>
+
+        <!-- Empty State for Admin Table -->
+        <div id="adminTableEmpty" class="empty-state hidden" style="margin: 20px auto;">
+          <div class="empty-icon">📭</div>
+          <h3>ไม่พบข้อมูลโพสต์</h3>
+          <p>ยังไม่มีข้อมูลในตารางหรือไม่มีข้อมูลที่ตรงกับคำค้นหา</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal for Editing a Post -->
+  <div class="modal-backdrop hidden" id="editModalBackdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>✏️ แก้ไขข้อมูลโพสต์ (Edit Row)</h3>
+        <button class="close-btn" id="closeEditModalBtn">&times;</button>
+      </div>
+      <form id="editPostForm" class="modal-body">
+        <input type="hidden" id="editPostId">
+        
+        <div class="form-group">
+          <label>เปลี่ยนหมวดอารมณ์ (Mood)</label>
+          <div class="mood-selector" id="editMoodSelector">
+            <label class="mood-option">
+              <input type="radio" name="editMood" value="happy">
+              <span class="mood-emoji">😊</span>
+              <span class="mood-label">มีความสุข</span>
+            </label>
+            <label class="mood-option">
+              <input type="radio" name="editMood" value="stressed">
+              <span class="mood-emoji">🤯</span>
+              <span class="mood-label">เครียด/งานเยอะ</span>
+            </label>
+            <label class="mood-option">
+              <input type="radio" name="editMood" value="sleepy">
+              <span class="mood-emoji">😴</span>
+              <span class="mood-label">ง่วงนอน/เพลีย</span>
+            </label>
+            <label class="mood-option">
+              <input type="radio" name="editMood" value="fire">
+              <span class="mood-emoji">🔥</span>
+              <span class="mood-label">มีไฟ/สู้ตาย</span>
+            </label>
+            <label class="mood-option">
+              <input type="radio" name="editMood" value="sad">
+              <span class="mood-emoji">😭</span>
+              <span class="mood-label">ต้องการกำลังใจ</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="editContentText">ข้อความเนื้อหา (Content)</label>
+          <textarea id="editContentText" rows="4" maxlength="280" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="editLikesInput">ยอดการส่งกำลังใจ / ไลก์ (Likes)</label>
+          <input type="number" id="editLikesInput" min="0" style="width: 100%; background: rgba(0,0,0,0.35); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px 14px; color: var(--text-main); font-family: inherit; font-size: 15px;" required>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelEditBtn">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" id="saveEditBtn">
+            <span>💾 บันทึกการแก้ไข (Update)</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal for Creating/Inserting New Post from Admin -->
+  <div class="modal-backdrop hidden" id="insertModalBackdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>➕ เพิ่มข้อมูลโพสต์ใหม่ (Insert Row)</h3>
+        <button class="close-btn" id="closeInsertModalBtn">&times;</button>
+      </div>
+      <form id="insertPostForm" class="modal-body">
+        <div class="form-group">
+          <label>เลือกหมวดอารมณ์ (Mood)</label>
+          <div class="mood-selector" id="insertMoodSelector">
+            <label class="mood-option selected">
+              <input type="radio" name="insertMood" value="happy" checked>
+              <span class="mood-emoji">😊</span>
+              <span class="mood-label">มีความสุข</span>
+            </label>
+            <label class="mood-option">
+              <input type="radio" name="insertMood" value="stressed">
+              <span class="mood-emoji">🤯</span>
+              <span class="mood-label">เครียด/งานเยอะ</span>
+            </label>
+            <label class="mood-option">
+              <input type="radio" name="insertMood" value="sleepy">
+              <span class="mood-emoji">😴</span>
+              <span class="mood-label">ง่วงนอน/เพลีย</span>
+            </label>
+            <label class="mood-option">
+              <input type="radio" name="insertMood" value="fire">
+              <span class="mood-emoji">🔥</span>
+              <span class="mood-label">มีไฟ/สู้ตาย</span>
+            </label>
+            <label class="mood-option">
+              <input type="radio" name="insertMood" value="sad">
+              <span class="mood-emoji">😭</span>
+              <span class="mood-label">ต้องการกำลังใจ</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="insertContentText">ข้อความเนื้อหา (Content)</label>
+          <textarea id="insertContentText" rows="4" placeholder="พิมพ์ข้อความที่ต้องการบันทึกลงฐานข้อมูล..." maxlength="280" required></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelInsertBtn">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" id="saveInsertBtn">
+            <span>➕ บันทึกข้อมูลใหม่ (Insert)</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast hidden" id="toast">
+    <span id="toastIcon">✨</span>
+    <span id="toastMessage">ดำเนินการสำเร็จ!</span>
+  </div>
+
+  <!-- Admin Script -->
+  <script src="admin.js"></script>
+</body>
+</html>
