@@ -1,4 +1,4 @@
-﻿// =========================================================================
+// =========================================================================
 // MoodWall — Client Application Script
 // เชื่อมต่อ Custom Backend API & WebSocket Realtime (ไม่ใช้ Supabase)
 // =========================================================================
@@ -453,6 +453,10 @@ function showToast(message) {
 // 8. เริ่มต้นทำงาน
 // =========================================================================
 document.addEventListener("DOMContentLoaded", () => {
+  if (window.location.protocol === "file:") {
+    const fileNotice = document.getElementById("fileNotice");
+    if (fileNotice) fileNotice.classList.remove("hidden");
+  }
   fetchPosts();
   connectRealtime();
 });
