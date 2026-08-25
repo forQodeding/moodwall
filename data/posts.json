@@ -1,10 +1,46 @@
 [
   {
+    "id": "post-1787645270888-91",
+    "content": "ะพะพ",
+    "mood": "stressed",
+    "likes": 0,
+    "created_at": "2026-08-25T08:07:50.888Z"
+  },
+  {
+    "id": "post-1787644900189-827",
+    "content": "ฟกหฟก",
+    "mood": "happy",
+    "likes": 0,
+    "created_at": "2026-08-25T08:01:40.189Z"
+  },
+  {
+    "id": "post-1787644893103-828",
+    "content": "ี้ี่",
+    "mood": "sleepy",
+    "likes": 0,
+    "created_at": "2026-08-25T08:01:33.104Z"
+  },
+  {
+    "id": "post-1787644832794-888",
+    "content": "าร่",
+    "mood": "happy",
+    "likes": 0,
+    "created_at": "2026-08-25T08:00:32.794Z"
+  },
+  {
+    "id": "post-1787644815137-878",
+    "content": "????????????? PowerShell",
+    "mood": "happy",
+    "likes": 0,
+    "created_at": "2026-08-25T08:00:15.137Z"
+  },
+  {
     "id": "post-1",
-    "content": "ยินดีต้อนรับสู่ MoodWall! ระบบนี้ใช้ Custom Backend + Database ที่เราสร้างขึ้นเอง มีระบบหลังบ้านจัดการข้อมูลได้แบบ Realtime ✨",
+    "content": "??????????????? MoodWall! ?????????? Custom Backend + Database ?????????????????? ???????????????????????????????? Realtime ? (???????????????)",
     "mood": "fire",
-    "likes": 28,
-    "created_at": "2026-08-25T07:35:54.418Z"
+    "likes": 30,
+    "created_at": "2026-08-25T07:35:54.418Z",
+    "updated_at": "2026-08-25T08:07:20.073Z"
   },
   {
     "id": "post-2",
