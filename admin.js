@@ -3,9 +3,44 @@
 // ควบคุมและจัดการฐานข้อมูล Server แบบ Realtime (Table Editor & Stats)
 // =========================================================================
 
-const API_BASE = window.location.origin && window.location.origin.startsWith("http")
-  ? window.location.origin
-  : "http://localhost:3000";
+function getApiBase() {
+  if (
+    !window.location.origin ||
+    window.location.origin === "null" ||
+    window.location.protocol === "file:"
+  ) {
+    return "http://localhost:3000";
+  }
+  if (
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") &&
+    window.location.port &&
+    window.location.port !== "3000"
+  ) {
+    return "http://localhost:3000";
+  }
+  return window.location.origin;
+}
+
+function getWebSocketUrl() {
+  if (
+    !window.location.origin ||
+    window.location.origin === "null" ||
+    window.location.protocol === "file:"
+  ) {
+    return "ws://localhost:3000";
+  }
+  if (
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") &&
+    window.location.port &&
+    window.location.port !== "3000"
+  ) {
+    return "ws://localhost:3000";
+  }
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return ${protocol}//;
+}
+
+const API_BASE = getApiBase();
 
 // Mood Mapping
 const MOOD_MAP = {
@@ -119,8 +154,8 @@ async function fetchAdminPosts() {
   adminPostsTableBody.innerHTML = "";
 
   try {
-    const res = await fetch(`${API_BASE}/api/posts`);
-    if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+    const res = await fetch(${API_BASE}/api/posts);
+    if (!res.ok) throw new Error(HTTP Error: );
     const result = await res.json();
     allPosts = result.data || [];
   } catch (err) {
@@ -159,7 +194,7 @@ function updateStats() {
   }
 
   const moodInfo = MOOD_MAP[maxMood] || MOOD_MAP.happy;
-  topMoodStat.textContent = `${moodInfo.emoji} ${moodInfo.label} (${maxCount})`;
+  topMoodStat.textContent = ${moodInfo.emoji}  ();
 }
 
 // =========================================================================
@@ -185,7 +220,7 @@ function renderAdminTable() {
 
   filtered.forEach((post) => {
     const tr = document.createElement("tr");
-    tr.id = `row-${post.id}`;
+    tr.id = ow-;
 
     const moodInfo = MOOD_MAP[post.mood] || MOOD_MAP.happy;
     const formattedDate = new Date(post.created_at).toLocaleString("th-TH", {
@@ -193,34 +228,34 @@ function renderAdminTable() {
       timeStyle: "short"
     });
 
-    tr.innerHTML = `
+    tr.innerHTML = 
       <td>
-        <span class="mood-badge ${moodInfo.class}">
-          <span>${moodInfo.emoji}</span>
-          <span>${moodInfo.label}</span>
+        <span class="mood-badge ">
+          <span></span>
+          <span></span>
         </span>
       </td>
       <td>
-        <div class="table-content-preview">${escapeHTML(post.content)}</div>
-        <small style="color: var(--text-dim); font-size: 11px;">ID: ${post.id}</small>
+        <div class="table-content-preview"></div>
+        <small style="color: var(--text-dim); font-size: 11px;">ID: </small>
       </td>
       <td>
-        <strong style="color: #fb7185;">❤️ ${post.likes || 0}</strong>
+        <strong style="color: #fb7185;">❤️ </strong>
       </td>
       <td style="color: var(--text-dim); font-size: 13px; white-space: nowrap;">
-        ${formattedDate}
+        
       </td>
       <td style="text-align: right;">
         <div class="action-btns" style="justify-content: flex-end;">
-          <button class="btn-action-edit" data-id="${post.id}">
+          <button class="btn-action-edit" data-id="">
             <span>✏️ แก้ไข</span>
           </button>
-          <button class="btn-action-delete" data-id="${post.id}">
+          <button class="btn-action-delete" data-id="">
             <span>🗑️ ลบ</span>
           </button>
         </div>
       </td>
-    `;
+    ;
 
     // ผูกปุ่ม Edit & Delete
     const editBtn = tr.querySelector(".btn-action-edit");
@@ -263,7 +298,7 @@ function openEditModal(post) {
   editContentText.value = post.content;
   editLikesInput.value = post.likes || 0;
 
-  const radio = document.querySelector(`input[name="editMood"][value="${post.mood}"]`);
+  const radio = document.querySelector(input[name="editMood"][value=""]);
   if (radio) radio.checked = true;
   
   document.querySelectorAll("#editMoodSelector .mood-option").forEach((el) => {
@@ -295,6 +330,8 @@ editMoodSelector.addEventListener("click", (e) => {
   if (!label) return;
   document.querySelectorAll("#editMoodSelector .mood-option").forEach((el) => el.classList.remove("selected"));
   label.classList.add("selected");
+  const radio = label.querySelector("input");
+  if (radio) radio.checked = true;
 });
 
 editPostForm.addEventListener("submit", async (e) => {
@@ -305,14 +342,17 @@ editPostForm.addEventListener("submit", async (e) => {
   const selectedMoodEl = document.querySelector('input[name="editMood"]:checked');
   const newMood = selectedMoodEl ? selectedMoodEl.value : "happy";
 
-  if (!newContent) return;
+  if (!newContent) {
+    showToast("⚠️ กรุณากรอกข้อความ");
+    return;
+  }
 
   const saveBtn = document.getElementById("saveEditBtn");
   saveBtn.disabled = true;
   saveBtn.innerHTML = "<span>⏳ กำลังบันทึก...</span>";
 
   try {
-    const res = await fetch(`${API_BASE}/api/posts/${postId}`, {
+    const res = await fetch(${API_BASE}/api/posts/, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -322,17 +362,28 @@ editPostForm.addEventListener("submit", async (e) => {
       })
     });
 
-    if (!res.ok) throw new Error("Update failed");
+    const result = await res.json();
+    if (!res.ok || !result.success) {
+      throw new Error(result.error || "Update failed");
+    }
+
+    // อัปเดตในตารางทันที
+    const idx = allPosts.findIndex((p) => p.id === postId);
+    if (idx !== -1 && result.data) {
+      allPosts[idx] = result.data;
+      updateStats();
+      renderAdminTable();
+    }
 
     closeEditModal();
     showToast("💾 บันทึกการแก้ไขลงฐานข้อมูลสำเร็จ!");
   } catch (err) {
-    console.error("แก้ไขข้อมูลล้มเหลว:", err.message);
-    showToast("❌ แก้ไขข้อมูลล้มเหลว: " + err.message);
+    console.error("แก้ไขข้อมูลล้มเหลว:", err);
+    showToast("❌ แก้ไขข้อมูลล้มเหลว: " + (err.message || "ไม่สามารถติดต่อ Server ได้"));
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = "<span>💾 บันทึกการแก้ไข (Update)</span>";
   }
-
-  saveBtn.disabled = false;
-  saveBtn.innerHTML = "<span>💾 บันทึกการแก้ไข (Update)</span>";
 });
 
 // =========================================================================
@@ -346,6 +397,9 @@ function openInsertModal() {
 function closeInsertModal() {
   insertModalBackdrop.classList.add("hidden");
   insertPostForm.reset();
+  document.querySelectorAll("#insertMoodSelector .mood-option").forEach((el) => el.classList.remove("selected"));
+  const defaultOption = document.querySelector('#insertMoodSelector .mood-option input[value="happy"]')?.closest(".mood-option");
+  if (defaultOption) defaultOption.classList.add("selected");
 }
 
 openInsertModalBtn.addEventListener("click", openInsertModal);
@@ -360,12 +414,17 @@ insertMoodSelector.addEventListener("click", (e) => {
   if (!label) return;
   document.querySelectorAll("#insertMoodSelector .mood-option").forEach((el) => el.classList.remove("selected"));
   label.classList.add("selected");
+  const radio = label.querySelector("input");
+  if (radio) radio.checked = true;
 });
 
 insertPostForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = insertContentText.value.trim();
-  if (!text) return;
+  if (!text) {
+    showToast("⚠️ กรุณากรอกข้อความ");
+    return;
+  }
 
   const selectedMoodEl = document.querySelector('input[name="insertMood"]:checked');
   const mood = selectedMoodEl ? selectedMoodEl.value : "happy";
@@ -375,23 +434,32 @@ insertPostForm.addEventListener("submit", async (e) => {
   saveBtn.innerHTML = "<span>⏳ กำลังบันทึก...</span>";
 
   try {
-    const res = await fetch(`${API_BASE}/api/posts`, {
+    const res = await fetch(${API_BASE}/api/posts, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: text, mood: mood })
     });
 
-    if (!res.ok) throw new Error("Insert failed");
+    const result = await res.json();
+    if (!res.ok || !result.success) {
+      throw new Error(result.error || "Insert failed");
+    }
+
+    if (result.data && !allPosts.some((p) => p.id === result.data.id)) {
+      allPosts.unshift(result.data);
+      updateStats();
+      renderAdminTable();
+    }
 
     closeInsertModal();
     showToast("➕ เพิ่มข้อมูลใหม่ลงฐานข้อมูลสำเร็จ!");
   } catch (err) {
-    console.error("เพิ่มข้อมูลล้มเหลว:", err.message);
-    showToast("❌ เพิ่มข้อมูลล้มเหลว: " + err.message);
+    console.error("เพิ่มข้อมูลล้มเหลว:", err);
+    showToast("❌ เพิ่มข้อมูลล้มเหลว: " + (err.message || "ไม่สามารถติดต่อ Server ได้"));
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = "<span>➕ บันทึกข้อมูลใหม่ (Insert)</span>";
   }
-
-  saveBtn.disabled = false;
-  saveBtn.innerHTML = "<span>➕ บันทึกข้อมูลใหม่ (Insert)</span>";
 });
 
 // =========================================================================
@@ -402,12 +470,19 @@ async function handleDeletePost(postId) {
   if (!confirmDelete) return;
 
   try {
-    const res = await fetch(`${API_BASE}/api/posts/${postId}`, { method: "DELETE" });
-    if (!res.ok) throw new Error("Delete failed");
+    const res = await fetch(${API_BASE}/api/posts/, { method: "DELETE" });
+    const result = await res.json();
+    if (!res.ok || !result.success) {
+      throw new Error(result.error || "Delete failed");
+    }
+
+    allPosts = allPosts.filter((p) => p.id !== postId);
+    updateStats();
+    renderAdminTable();
     showToast("🗑️ ลบโพสต์ออกจากฐานข้อมูลสำเร็จ!");
   } catch (err) {
-    console.error("ลบโพสต์ผิดพลาด:", err.message);
-    showToast("❌ ลบโพสต์ผิดพลาด: " + err.message);
+    console.error("ลบโพสต์ผิดพลาด:", err);
+    showToast("❌ ลบโพสต์ผิดพลาด: " + (err.message || "ไม่สามารถติดต่อ Server ได้"));
   }
 }
 
@@ -416,12 +491,21 @@ resetDbBtn.addEventListener("click", async () => {
   if (!confirmReset) return;
 
   try {
-    const res = await fetch(`${API_BASE}/api/admin/reset`, { method: "POST" });
-    if (!res.ok) throw new Error("Reset failed");
+    const res = await fetch(${API_BASE}/api/admin/reset, { method: "POST" });
+    const result = await res.json();
+    if (!res.ok || !result.success) {
+      throw new Error(result.error || "Reset failed");
+    }
+
+    if (result.data) {
+      allPosts = result.data;
+      updateStats();
+      renderAdminTable();
+    }
     showToast("🔄 รีเซ็ตฐานข้อมูลกลับเป็นค่าเริ่มต้นสำเร็จ!");
   } catch (err) {
-    console.error("รีเซ็ตล้มเหลว:", err.message);
-    showToast("❌ รีเซ็ตล้มเหลว: " + err.message);
+    console.error("รีเซ็ตล้มเหลว:", err);
+    showToast("❌ รีเซ็ตล้มเหลว: " + (err.message || "ไม่สามารถติดต่อ Server ได้"));
   }
 });
 
@@ -431,19 +515,17 @@ resetDbBtn.addEventListener("click", async () => {
 let adminSocket = null;
 
 function connectAdminRealtime() {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const host = window.location.host || "localhost:3000";
-  const wsUrl = `${protocol}//${host}`;
+  const wsUrl = getWebSocketUrl();
 
   try {
     adminSocket = new WebSocket(wsUrl);
 
     adminSocket.onopen = () => {
-      console.log("🟢 Admin Realtime WebSocket Connected");
-      adminRealtimeStatus.innerHTML = `
+      console.log("🟢 Admin Realtime WebSocket Connected via " + wsUrl);
+      adminRealtimeStatus.innerHTML = 
         <span class="status-dot"></span>
         <span class="status-text">Realtime Live</span>
-      `;
+      ;
     };
 
     adminSocket.onmessage = (event) => {
@@ -480,10 +562,10 @@ function connectAdminRealtime() {
     };
 
     adminSocket.onclose = () => {
-      adminRealtimeStatus.innerHTML = `
+      adminRealtimeStatus.innerHTML = 
         <span class="status-dot" style="background:#fbbf24;box-shadow:0 0 10px #fbbf24;"></span>
         <span class="status-text" style="color:#fbbf24;">กำลังเชื่อมต่อใหม่...</span>
-      `;
+      ;
       setTimeout(connectAdminRealtime, 3000);
     };
 
@@ -508,6 +590,7 @@ function escapeHTML(str) {
 
 function showToast(message) {
   const toastMessage = document.getElementById("toastMessage");
+  if (!toastMessage || !toast) return;
   toastMessage.textContent = message;
   toast.classList.remove("hidden");
 
