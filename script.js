@@ -38,7 +38,7 @@ function getWebSocketUrl() {
     return "ws://localhost:3000";
   }
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return ${protocol}//;
+  return `${protocol}//${window.location.host}`;
 }
 
 const API_BASE = getApiBase();
@@ -76,13 +76,13 @@ const toast = document.getElementById("toast");
 // 1. โหลดข้อมูลโพสต์จาก Custom Backend REST API
 // =========================================================================
 async function fetchPosts() {
-  loadingIndicator.classList.remove("hidden");
-  postsGrid.innerHTML = "";
-  emptyState.classList.add("hidden");
+  if (loadingIndicator) loadingIndicator.classList.remove("hidden");
+  if (postsGrid) postsGrid.innerHTML = "";
+  if (emptyState) emptyState.classList.add("hidden");
 
   try {
-    const res = await fetch(${API_BASE}/api/posts);
-    if (!res.ok) throw new Error(HTTP Error: );
+    const res = await fetch(`${API_BASE}/api/posts`);
+    if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
     
     const result = await res.json();
     postsData = result.data || [];
@@ -91,7 +91,7 @@ async function fetchPosts() {
     showToast("⚠️ ไม่สามารถเชื่อมต่อ Server ได้ กรุณารัน 'npm start' ในโฟลเดอร์ moodwall");
   }
 
-  loadingIndicator.classList.add("hidden");
+  if (loadingIndicator) loadingIndicator.classList.add("hidden");
   renderPosts();
 }
 
@@ -99,6 +99,7 @@ async function fetchPosts() {
 // 2. การแสดงผลการ์ดโพสต์บนหน้าจอ
 // =========================================================================
 function renderPosts() {
+  if (!postsGrid) return;
   postsGrid.innerHTML = "";
 
   const filteredPosts = postsData.filter((post) => {
@@ -107,42 +108,44 @@ function renderPosts() {
   });
 
   if (filteredPosts.length === 0) {
-    emptyState.classList.remove("hidden");
+    if (emptyState) emptyState.classList.remove("hidden");
     return;
   }
 
-  emptyState.classList.add("hidden");
+  if (emptyState) emptyState.classList.add("hidden");
 
   filteredPosts.forEach((post) => {
     const card = document.createElement("article");
     card.className = "post-card";
-    card.id = post-;
+    card.id = `post-${post.id}`;
 
     const moodInfo = MOOD_MAP[post.mood] || MOOD_MAP.happy;
     const timeText = formatTimeAgo(post.created_at);
     const isLiked = likedPosts.has(post.id);
 
-    card.innerHTML = 
+    card.innerHTML = `
       <div class="post-header">
-        <span class="mood-badge ">
-          <span></span>
-          <span></span>
+        <span class="mood-badge ${moodInfo.class}">
+          <span>${moodInfo.emoji}</span>
+          <span>${moodInfo.label}</span>
         </span>
-        <span class="time-ago"></span>
+        <span class="time-ago">${timeText}</span>
       </div>
-      <div class="post-content"></div>
+      <div class="post-content">${escapeHTML(post.content)}</div>
       <div class="post-footer">
         <span style="font-size: 12px; color: var(--text-dim);">#ไม่ระบุตัวตน</span>
-        <button class="like-btn " data-id="" data-likes="">
-          <span></span>
-          <span class="like-count"></span>
+        <button class="like-btn ${isLiked ? 'liked' : ''}" data-id="${post.id}" data-likes="${post.likes || 0}">
+          <span>${isLiked ? '❤️' : '🤍'}</span>
+          <span class="like-count">${post.likes || 0}</span>
         </button>
       </div>
-    ;
+    `;
 
     // ผูกปุ่มกดถูกใจ
     const likeBtn = card.querySelector(".like-btn");
-    likeBtn.addEventListener("click", () => handleLike(post.id, post.likes || 0, likeBtn));
+    if (likeBtn) {
+      likeBtn.addEventListener("click", () => handleLike(post.id, post.likes || 0, likeBtn));
+    }
 
     postsGrid.appendChild(card);
   });
@@ -176,7 +179,7 @@ async function handleLike(postId, currentLikes, buttonEl) {
 
   // ส่ง API ไปยัง Backend
   try {
-    await fetch(${API_BASE}/api/posts//like, { method: "POST" });
+    await fetch(`${API_BASE}/api/posts/${postId}/like`, { method: "POST" });
   } catch (err) {
     console.error("อัปเดตยอดไลก์ผิดพลาด:", err.message);
   }
@@ -197,10 +200,12 @@ function connectRealtime() {
 
     socket.onopen = () => {
       console.log("🟢 Connected to Custom Realtime Server via " + wsUrl);
-      realtimeStatus.innerHTML = 
-        <span class="status-dot"></span>
-        <span class="status-text">Realtime Live</span>
-      ;
+      if (realtimeStatus) {
+        realtimeStatus.innerHTML = `
+          <span class="status-dot"></span>
+          <span class="status-text">Realtime Live</span>
+        `;
+      }
     };
 
     socket.onmessage = (event) => {
@@ -239,10 +244,12 @@ function connectRealtime() {
 
     socket.onclose = () => {
       console.warn("🔴 Disconnected from Realtime Server. Reconnecting in 3s...");
-      realtimeStatus.innerHTML = 
-        <span class="status-dot" style="background:#fbbf24;box-shadow:0 0 10px #fbbf24;"></span>
-        <span class="status-text" style="color:#fbbf24;">กำลังเชื่อมต่อใหม่...</span>
-      ;
+      if (realtimeStatus) {
+        realtimeStatus.innerHTML = `
+          <span class="status-dot" style="background:#fbbf24;box-shadow:0 0 10px #fbbf24;"></span>
+          <span class="status-text" style="color:#fbbf24;">กำลังเชื่อมต่อใหม่...</span>
+        `;
+      }
       setTimeout(connectRealtime, 3000);
     };
 
@@ -258,29 +265,37 @@ function connectRealtime() {
 // =========================================================================
 // 5. ตัวกรองอารมณ์ (Mood Filters)
 // =========================================================================
-moodFilters.addEventListener("click", (e) => {
-  const btn = e.target.closest(".filter-btn");
-  if (!btn) return;
+if (moodFilters) {
+  moodFilters.addEventListener("click", (e) => {
+    const btn = e.target.closest(".filter-btn");
+    if (!btn) return;
 
-  document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("active"));
-  btn.classList.add("active");
-  currentFilter = btn.getAttribute("data-mood");
-  renderPosts();
-});
+    document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentFilter = btn.getAttribute("data-mood");
+    renderPosts();
+  });
+}
 
 // =========================================================================
 // 6. ระบบ Modal และฟอร์มโพสต์ข้อความใหม่
 // =========================================================================
 function openModal() {
-  modalBackdrop.classList.remove("hidden");
-  setTimeout(() => {
-    confessionText.focus();
-  }, 50);
+  if (modalBackdrop) {
+    modalBackdrop.classList.remove("hidden");
+    setTimeout(() => {
+      if (confessionText) confessionText.focus();
+    }, 50);
+  }
 }
 
 function closeModal() {
-  modalBackdrop.classList.add("hidden");
-  confessionForm.reset();
+  if (modalBackdrop) {
+    modalBackdrop.classList.add("hidden");
+  }
+  if (confessionForm) {
+    confessionForm.reset();
+  }
   
   // รีเซ็ตตัวเลือกหมวดอารมณ์กลับเป็น happy
   document.querySelectorAll(".mood-option").forEach((el) => el.classList.remove("selected"));
@@ -295,90 +310,103 @@ document.querySelectorAll('[data-open-modal="true"]').forEach((btn) => {
   btn.addEventListener("click", openModal);
 });
 
-closeModalBtn.addEventListener("click", closeModal);
-cancelBtn.addEventListener("click", closeModal);
+if (closeModalBtn) closeModalBtn.addEventListener("click", closeModal);
+if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
 
-modalBackdrop.addEventListener("click", (e) => {
-  if (e.target === modalBackdrop) closeModal();
-});
+if (modalBackdrop) {
+  modalBackdrop.addEventListener("click", (e) => {
+    if (e.target === modalBackdrop) closeModal();
+  });
+}
 
 // ปิดด้วยปุ่ม Esc
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && !modalBackdrop.classList.contains("hidden")) {
+  if (e.key === "Escape" && modalBackdrop && !modalBackdrop.classList.contains("hidden")) {
     closeModal();
   }
 });
 
-modalMoodSelector.addEventListener("click", (e) => {
-  const label = e.target.closest(".mood-option");
-  if (!label) return;
+if (modalMoodSelector) {
+  modalMoodSelector.addEventListener("click", (e) => {
+    const label = e.target.closest(".mood-option");
+    if (!label) return;
 
-  document.querySelectorAll(".mood-option").forEach((el) => el.classList.remove("selected"));
-  label.classList.add("selected");
-  const radio = label.querySelector('input[type="radio"]');
-  if (radio) radio.checked = true;
-});
+    document.querySelectorAll(".mood-option").forEach((el) => el.classList.remove("selected"));
+    label.classList.add("selected");
+    const radio = label.querySelector('input[type="radio"]');
+    if (radio) radio.checked = true;
+  });
+}
 
-confessionText.addEventListener("input", updateCharCounter);
+if (confessionText) {
+  confessionText.addEventListener("input", updateCharCounter);
 
-// ส่งฟอร์มด้วยปุ่ม Ctrl+Enter / Cmd+Enter
-confessionText.addEventListener("keydown", (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-    e.preventDefault();
-    confessionForm.requestSubmit();
-  }
-});
+  // ส่งฟอร์มด้วยปุ่ม Ctrl+Enter / Cmd+Enter
+  confessionText.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      if (confessionForm) confessionForm.requestSubmit();
+    }
+  });
+}
 
 function updateCharCounter() {
+  if (!confessionText || !charCounter) return;
   const count = confessionText.value.length;
-  charCounter.textContent = ${count} / 280 ตัวอักษร;
+  charCounter.textContent = `${count} / 280 ตัวอักษร`;
   charCounter.style.color = count > 250 ? "#f87171" : "var(--text-dim)";
 }
 
-confessionForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const text = confessionText.value.trim();
-  if (!text) {
-    showToast("⚠️ กรุณากรอกข้อความก่อนโพสต์");
-    confessionText.focus();
-    return;
-  }
-
-  const selectedMoodEl = document.querySelector('input[name="mood"]:checked');
-  const mood = selectedMoodEl ? selectedMoodEl.value : "happy";
-
-  const submitBtn = document.getElementById("submitPostBtn");
-  submitBtn.disabled = true;
-  submitBtn.innerHTML = <span>⏳ กำลังส่ง...</span>;
-
-  try {
-    const res = await fetch(${API_BASE}/api/posts, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: text, mood: mood })
-    });
-
-    const result = await res.json();
-    if (!res.ok || !result.success) {
-      throw new Error(result.error || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+if (confessionForm) {
+  confessionForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = confessionText ? confessionText.value.trim() : "";
+    if (!text) {
+      showToast("⚠️ กรุณากรอกข้อความก่อนโพสต์");
+      if (confessionText) confessionText.focus();
+      return;
     }
 
-    // เพิ่มโพสต์ลงบนหน้าจอทันที (Direct Update ป้องกันกรณี WebSocket ขาดการเชื่อมต่อ)
-    if (result.data && !postsData.some((p) => p.id === result.data.id)) {
-      postsData.unshift(result.data);
-      renderPosts();
+    const selectedMoodEl = document.querySelector('input[name="mood"]:checked');
+    const mood = selectedMoodEl ? selectedMoodEl.value : "happy";
+
+    const submitBtn = document.getElementById("submitPostBtn");
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<span>⏳ กำลังส่ง...</span>`;
     }
 
-    closeModal();
-    showToast("✨ โพสต์ระบายความรู้สึกสำเร็จแล้ว!");
-  } catch (err) {
-    console.error("ส่งข้อความผิดพลาด:", err);
-    showToast("❌ ส่งข้อความไม่สำเร็จ: " + (err.message || "ไม่สามารถติดต่อ Server ได้"));
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = <span>🚀 ส่งข้อความ (Live!)</span>;
-  }
-});
+    try {
+      const res = await fetch(`${API_BASE}/api/posts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text, mood: mood })
+      });
+
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+      }
+
+      // เพิ่มโพสต์ลงบนหน้าจอทันที (Direct Update ป้องกันกรณี WebSocket ขาดการเชื่อมต่อ)
+      if (result.data && !postsData.some((p) => p.id === result.data.id)) {
+        postsData.unshift(result.data);
+        renderPosts();
+      }
+
+      closeModal();
+      showToast("✨ โพสต์ระบายความรู้สึกสำเร็จแล้ว!");
+    } catch (err) {
+      console.error("ส่งข้อความผิดพลาด:", err);
+      showToast("❌ ส่งข้อความไม่สำเร็จ: " + (err.message || "ไม่สามารถติดต่อ Server ได้"));
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<span>🚀 ส่งข้อความ (Live!)</span>`;
+      }
+    }
+  });
+}
 
 // =========================================================================
 // 7. Helper Functions
@@ -390,16 +418,16 @@ function formatTimeAgo(isoDateString) {
   const diffInSeconds = Math.floor((now - date) / 1000);
 
   if (diffInSeconds < 30) return "เมื่อกี้";
-  if (diffInSeconds < 60) return ${diffInSeconds} วิที่แล้ว;
+  if (diffInSeconds < 60) return `${diffInSeconds} วิที่แล้ว`;
 
   const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) return ${diffInMinutes} นาทีที่แล้ว;
+  if (diffInMinutes < 60) return `${diffInMinutes} นาทีที่แล้ว`;
 
   const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return ${diffInHours} ชม. ที่แล้ว;
+  if (diffInHours < 24) return `${diffInHours} ชม. ที่แล้ว`;
 
   const diffInDays = Math.floor(diffInHours / 24);
-  return ${diffInDays} วันที่แล้ว;
+  return `${diffInDays} วันที่แล้ว`;
 }
 
 function escapeHTML(str) {
