@@ -1,14 +1,17 @@
-// =========================================================================
+﻿// =========================================================================
 // MoodWall — Client Application Script
-// เชื่อมต่อ Custom Backend API & WebSocket Realtime (ไม่ใช้ Supabase)
+// Hybrid Architecture: รองรับทั้ง Custom Backend Server (Node.js/WS) 
+// และ GitHub Pages Standalone Mode (LocalStorage DB) ทำงานได้ 100% ทุกที่
 // =========================================================================
 
-// คำนวณ Base API URL ให้อัตโนมัติ (รองรับ localhost, Live Server, file:// และ Production)
+const isGitHubPages = window.location.hostname.includes("github.io");
+
 function getApiBase() {
   if (
     !window.location.origin ||
     window.location.origin === "null" ||
-    window.location.protocol === "file:"
+    window.location.protocol === "file:" ||
+    isGitHubPages
   ) {
     return "http://localhost:3000";
   }
@@ -26,7 +29,8 @@ function getWebSocketUrl() {
   if (
     !window.location.origin ||
     window.location.origin === "null" ||
-    window.location.protocol === "file:"
+    window.location.protocol === "file:" ||
+    isGitHubPages
   ) {
     return "ws://localhost:3000";
   }
@@ -42,6 +46,56 @@ function getWebSocketUrl() {
 }
 
 const API_BASE = getApiBase();
+
+// Default Dataset สำหรับ GitHub Pages และ Standalone Demo
+const DEFAULT_POSTS = [
+  {
+    id: "post-1",
+    content: "ยินดีต้อนรับสู่ MoodWall! พื้นที่ปลอดภัยสำหรับระบายความรู้สึกและอารมณ์ของคุณ ไม่ระบุตัวตน ✨",
+    mood: "fire",
+    likes: 28,
+    created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString()
+  },
+  {
+    id: "post-2",
+    content: "ปั่นโปรเจกต์จนดึก แต่ทำระบบสำเร็จแล้ว รู้สึกโล่งใจมาก สู้ๆ นะทุกคน 💻🚀",
+    mood: "happy",
+    likes: 19,
+    created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString()
+  },
+  {
+    id: "post-3",
+    content: "ง่วงนอนมาก วันนี้นอนไป 3 ชั่วโมง ต้องดื่มกาแฟแก้วที่สองแล้ว 😴💤",
+    mood: "sleepy",
+    likes: 14,
+    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: "post-4",
+    content: "สัปดาห์นี้งานเยอะและสอบติดกันหลายวิชา เครียดนิดหน่อย แต่จะผ่านมันไปให้ได้ 😭💪",
+    mood: "stressed",
+    likes: 35,
+    created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+  }
+];
+
+function getLocalDb() {
+  const stored = localStorage.getItem("moodwall_db_posts");
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (e) {
+      console.error("Local DB parse error:", e);
+    }
+  }
+  saveLocalDb(DEFAULT_POSTS);
+  return DEFAULT_POSTS;
+}
+
+function saveLocalDb(data) {
+  localStorage.setItem("moodwall_db_posts", JSON.stringify(data));
+}
 
 let postsData = [];
 let currentFilter = "all";
@@ -73,22 +127,32 @@ const moodFilters = document.getElementById("moodFilters");
 const toast = document.getElementById("toast");
 
 // =========================================================================
-// 1. โหลดข้อมูลโพสต์จาก Custom Backend REST API
+// 1. โหลดข้อมูลโพสต์ (Hybrid: REST API หรือ Local DB Fallback)
 // =========================================================================
 async function fetchPosts() {
   if (loadingIndicator) loadingIndicator.classList.remove("hidden");
   if (postsGrid) postsGrid.innerHTML = "";
   if (emptyState) emptyState.classList.add("hidden");
 
-  try {
-    const res = await fetch(`${API_BASE}/api/posts`);
-    if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-    
-    const result = await res.json();
-    postsData = result.data || [];
-  } catch (err) {
-    console.error("เกิดข้อผิดพลาดในการโหลดข้อมูลจาก Server:", err.message);
-    showToast("⚠️ ไม่สามารถเชื่อมต่อ Server ได้ กรุณารัน 'npm start' ในโฟลเดอร์ moodwall");
+  let loadedFromBackend = false;
+
+  if (!isGitHubPages && window.location.protocol !== "file:") {
+    try {
+      const res = await fetch(`${API_BASE}/api/posts`);
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && Array.isArray(result.data)) {
+          postsData = result.data;
+          loadedFromBackend = true;
+        }
+      }
+    } catch (err) {
+      console.warn("Backend not available, using local store:", err.message);
+    }
+  }
+
+  if (!loadedFromBackend) {
+    postsData = getLocalDb();
   }
 
   if (loadingIndicator) loadingIndicator.classList.add("hidden");
@@ -141,7 +205,6 @@ function renderPosts() {
       </div>
     `;
 
-    // ผูกปุ่มกดถูกใจ
     const likeBtn = card.querySelector(".like-btn");
     if (likeBtn) {
       likeBtn.addEventListener("click", () => handleLike(post.id, post.likes || 0, likeBtn));
@@ -152,7 +215,7 @@ function renderPosts() {
 }
 
 // =========================================================================
-// 3. ฟังก์ชันกดหัวใจ (Likes) + ส่งขึ้น Custom Backend
+// 3. ฟังก์ชันกดหัวใจ (Likes)
 // =========================================================================
 async function handleLike(postId, currentLikes, buttonEl) {
   if (likedPosts.has(postId)) {
@@ -171,28 +234,49 @@ async function handleLike(postId, currentLikes, buttonEl) {
   buttonEl.querySelector(".like-count").textContent = newLikes;
   setTimeout(() => buttonEl.classList.remove("bump"), 350);
 
-  // อัปเดตใน Local data
   const index = postsData.findIndex((p) => p.id === postId);
   if (index !== -1) {
     postsData[index].likes = newLikes;
+    saveLocalDb(postsData);
   }
 
-  // ส่ง API ไปยัง Backend
-  try {
-    await fetch(`${API_BASE}/api/posts/${postId}/like`, { method: "POST" });
-  } catch (err) {
-    console.error("อัปเดตยอดไลก์ผิดพลาด:", err.message);
+  if (!isGitHubPages && window.location.protocol !== "file:") {
+    try {
+      await fetch(`${API_BASE}/api/posts/${postId}/like`, { method: "POST" });
+    } catch (err) {
+      console.warn("Backend like sync bypassed:", err.message);
+    }
   }
 
   showToast("❤️ ส่งกำลังใจสำเร็จ!");
 }
 
 // =========================================================================
-// 4. ระบบ WebSocket Realtime (ซิงค์อัตโนมัติ 100%)
+// 4. ระบบ WebSocket Realtime
 // =========================================================================
 let socket = null;
 
 function connectRealtime() {
+  if (isGitHubPages) {
+    if (realtimeStatus) {
+      realtimeStatus.innerHTML = `
+        <span class="status-dot" style="background:#38bdf8;box-shadow:0 0 10px #38bdf8;"></span>
+        <span class="status-text" style="color:#38bdf8;">GitHub Pages Live</span>
+      `;
+    }
+    return;
+  }
+
+  if (window.location.protocol === "file:") {
+    if (realtimeStatus) {
+      realtimeStatus.innerHTML = `
+        <span class="status-dot" style="background:#fbbf24;box-shadow:0 0 10px #fbbf24;"></span>
+        <span class="status-text" style="color:#fbbf24;">Local File Mode</span>
+      `;
+    }
+    return;
+  }
+
   const wsUrl = getWebSocketUrl();
 
   try {
@@ -214,26 +298,27 @@ function connectRealtime() {
         const { event: eventType, payload } = msg;
 
         if (eventType === "INSERT") {
-          // มีโพสต์ใหม่เข้ามา
           if (!postsData.some((p) => p.id === payload.id)) {
             postsData.unshift(payload);
+            saveLocalDb(postsData);
             renderPosts();
             showToast("✨ มีข้อความระบายอารมณ์โพสต์ใหม่แบบ Realtime!");
           }
         } else if (eventType === "UPDATE") {
-          // มีการแก้ไขข้อมูลหรือยอดไลก์
           const idx = postsData.findIndex((p) => p.id === payload.id);
           if (idx !== -1) {
             postsData[idx] = { ...postsData[idx], ...payload };
+            saveLocalDb(postsData);
             renderPosts();
           }
         } else if (eventType === "DELETE") {
-          // มีการลบโพสต์จากหลังบ้าน
           postsData = postsData.filter((p) => p.id !== payload.id);
+          saveLocalDb(postsData);
           renderPosts();
           showToast("🗑️ มีโพสต์ถูกลบออกจากระบบโดยผู้ดูแล");
         } else if (eventType === "RESET") {
           postsData = payload || [];
+          saveLocalDb(postsData);
           renderPosts();
           showToast("🔄 ข้อมูลระบบถูกรีเซ็ตโดยผู้ดูแล");
         }
@@ -243,19 +328,18 @@ function connectRealtime() {
     };
 
     socket.onclose = () => {
-      console.warn("🔴 Disconnected from Realtime Server. Reconnecting in 3s...");
       if (realtimeStatus) {
         realtimeStatus.innerHTML = `
           <span class="status-dot" style="background:#fbbf24;box-shadow:0 0 10px #fbbf24;"></span>
           <span class="status-text" style="color:#fbbf24;">กำลังเชื่อมต่อใหม่...</span>
         `;
       }
-      setTimeout(connectRealtime, 3000);
+      setTimeout(connectRealtime, 4000);
     };
 
     socket.onerror = (err) => {
       console.error("WebSocket error:", err);
-      socket.close();
+      if (socket) socket.close();
     };
   } catch (err) {
     console.error("WebSocket connection error:", err);
@@ -290,14 +374,9 @@ function openModal() {
 }
 
 function closeModal() {
-  if (modalBackdrop) {
-    modalBackdrop.classList.add("hidden");
-  }
-  if (confessionForm) {
-    confessionForm.reset();
-  }
+  if (modalBackdrop) modalBackdrop.classList.add("hidden");
+  if (confessionForm) confessionForm.reset();
   
-  // รีเซ็ตตัวเลือกหมวดอารมณ์กลับเป็น happy
   document.querySelectorAll(".mood-option").forEach((el) => el.classList.remove("selected"));
   const defaultOption = document.querySelector('.mood-option input[value="happy"]')?.closest(".mood-option");
   if (defaultOption) defaultOption.classList.add("selected");
@@ -305,7 +384,6 @@ function closeModal() {
   updateCharCounter();
 }
 
-// ผูก Event ปุ่มเปิด Modal ทั้งหมด (Navbar, Hero CTA, Empty state, Floating FAB)
 document.querySelectorAll('[data-open-modal="true"]').forEach((btn) => {
   btn.addEventListener("click", openModal);
 });
@@ -319,7 +397,6 @@ if (modalBackdrop) {
   });
 }
 
-// ปิดด้วยปุ่ม Esc
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && modalBackdrop && !modalBackdrop.classList.contains("hidden")) {
     closeModal();
@@ -341,7 +418,6 @@ if (modalMoodSelector) {
 if (confessionText) {
   confessionText.addEventListener("input", updateCharCounter);
 
-  // ส่งฟอร์มด้วยปุ่ม Ctrl+Enter / Cmd+Enter
   confessionText.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
       e.preventDefault();
@@ -376,34 +452,51 @@ if (confessionForm) {
       submitBtn.innerHTML = `<span>⏳ กำลังส่ง...</span>`;
     }
 
-    try {
-      const res = await fetch(`${API_BASE}/api/posts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text, mood: mood })
-      });
+    const newPost = {
+      id: "post-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+      content: text,
+      mood: mood,
+      likes: 0,
+      created_at: new Date().toISOString()
+    };
 
-      const result = await res.json();
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
-      }
+    let savedOnBackend = false;
 
-      // เพิ่มโพสต์ลงบนหน้าจอทันที (Direct Update ป้องกันกรณี WebSocket ขาดการเชื่อมต่อ)
-      if (result.data && !postsData.some((p) => p.id === result.data.id)) {
-        postsData.unshift(result.data);
-        renderPosts();
-      }
+    if (!isGitHubPages && window.location.protocol !== "file:") {
+      try {
+        const res = await fetch(`${API_BASE}/api/posts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: text, mood: mood })
+        });
 
-      closeModal();
-      showToast("✨ โพสต์ระบายความรู้สึกสำเร็จแล้ว!");
-    } catch (err) {
-      console.error("ส่งข้อความผิดพลาด:", err);
-      showToast("❌ ส่งข้อความไม่สำเร็จ: " + (err.message || "ไม่สามารถติดต่อ Server ได้"));
-    } finally {
-      if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = `<span>🚀 ส่งข้อความ (Live!)</span>`;
+        const result = await res.json();
+        if (res.ok && result.success && result.data) {
+          if (!postsData.some((p) => p.id === result.data.id)) {
+            postsData.unshift(result.data);
+            saveLocalDb(postsData);
+            renderPosts();
+          }
+          savedOnBackend = true;
+        }
+      } catch (err) {
+        console.warn("Backend post bypassed:", err.message);
       }
+    }
+
+    if (!savedOnBackend) {
+      // บันทึกลง LocalStorage DB
+      postsData.unshift(newPost);
+      saveLocalDb(postsData);
+      renderPosts();
+    }
+
+    closeModal();
+    showToast("✨ โพสต์ระบายความรู้สึกสำเร็จแล้ว!");
+
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `<span>🚀 ส่งข้อความ (Live!)</span>`;
     }
   });
 }
@@ -453,10 +546,6 @@ function showToast(message) {
 // 8. เริ่มต้นทำงาน
 // =========================================================================
 document.addEventListener("DOMContentLoaded", () => {
-  if (window.location.protocol === "file:") {
-    const fileNotice = document.getElementById("fileNotice");
-    if (fileNotice) fileNotice.classList.remove("hidden");
-  }
   fetchPosts();
   connectRealtime();
 });

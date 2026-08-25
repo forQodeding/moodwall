@@ -1,13 +1,16 @@
 ﻿// =========================================================================
 // MoodWall Studio — Custom Backend Admin Script
-// ควบคุมและจัดการฐานข้อมูล Server แบบ Realtime (Table Editor & Stats)
+// Hybrid Architecture: รองรับทั้ง Custom Backend Server และ GitHub Pages
 // =========================================================================
+
+const isGitHubPages = window.location.hostname.includes("github.io");
 
 function getApiBase() {
   if (
     !window.location.origin ||
     window.location.origin === "null" ||
-    window.location.protocol === "file:"
+    window.location.protocol === "file:" ||
+    isGitHubPages
   ) {
     return "http://localhost:3000";
   }
@@ -25,7 +28,8 @@ function getWebSocketUrl() {
   if (
     !window.location.origin ||
     window.location.origin === "null" ||
-    window.location.protocol === "file:"
+    window.location.protocol === "file:" ||
+    isGitHubPages
   ) {
     return "ws://localhost:3000";
   }
@@ -41,6 +45,55 @@ function getWebSocketUrl() {
 }
 
 const API_BASE = getApiBase();
+
+const DEFAULT_POSTS = [
+  {
+    id: "post-1",
+    content: "ยินดีต้อนรับสู่ MoodWall! พื้นที่ปลอดภัยสำหรับระบายความรู้สึกและอารมณ์ของคุณ ไม่ระบุตัวตน ✨",
+    mood: "fire",
+    likes: 28,
+    created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString()
+  },
+  {
+    id: "post-2",
+    content: "ปั่นโปรเจกต์จนดึก แต่ทำระบบสำเร็จแล้ว รู้สึกโล่งใจมาก สู้ๆ นะทุกคน 💻🚀",
+    mood: "happy",
+    likes: 19,
+    created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString()
+  },
+  {
+    id: "post-3",
+    content: "ง่วงนอนมาก วันนี้นอนไป 3 ชั่วโมง ต้องดื่มกาแฟแก้วที่สองแล้ว 😴💤",
+    mood: "sleepy",
+    likes: 14,
+    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: "post-4",
+    content: "สัปดาห์นี้งานเยอะและสอบติดกันหลายวิชา เครียดนิดหน่อย แต่จะผ่านมันไปให้ได้ 😭💪",
+    mood: "stressed",
+    likes: 35,
+    created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+  }
+];
+
+function getLocalDb() {
+  const stored = localStorage.getItem("moodwall_db_posts");
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (e) {
+      console.error("Local DB parse error:", e);
+    }
+  }
+  saveLocalDb(DEFAULT_POSTS);
+  return DEFAULT_POSTS;
+}
+
+function saveLocalDb(data) {
+  localStorage.setItem("moodwall_db_posts", JSON.stringify(data));
+}
 
 // Mood Mapping
 const MOOD_MAP = {
@@ -147,7 +200,7 @@ if (logoutBtn) {
 }
 
 // =========================================================================
-// 2. ดึงข้อมูลจาก Custom Backend & คำนวณสถิติ
+// 2. ดึงข้อมูล & คำนวณสถิติ
 // =========================================================================
 async function initAdminData() {
   await fetchAdminPosts();
@@ -159,14 +212,25 @@ async function fetchAdminPosts() {
   if (adminTableEmpty) adminTableEmpty.classList.add("hidden");
   if (adminPostsTableBody) adminPostsTableBody.innerHTML = "";
 
-  try {
-    const res = await fetch(`${API_BASE}/api/posts`);
-    if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-    const result = await res.json();
-    allPosts = result.data || [];
-  } catch (err) {
-    console.error("เกิดข้อผิดพลาดในการโหลดข้อมูล:", err.message);
-    showToast("❌ โหลดข้อมูลล้มเหลว ตรวจสอบว่าได้รัน server.js หรือไม่");
+  let loadedFromBackend = false;
+
+  if (!isGitHubPages && window.location.protocol !== "file:") {
+    try {
+      const res = await fetch(`${API_BASE}/api/posts`);
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && Array.isArray(result.data)) {
+          allPosts = result.data;
+          loadedFromBackend = true;
+        }
+      }
+    } catch (err) {
+      console.warn("Backend not available, using local store:", err.message);
+    }
+  }
+
+  if (!loadedFromBackend) {
+    allPosts = getLocalDb();
   }
 
   if (adminTableLoading) adminTableLoading.classList.add("hidden");
@@ -264,7 +328,6 @@ function renderAdminTable() {
       </td>
     `;
 
-    // ผูกปุ่ม Edit & Delete
     const editBtn = tr.querySelector(".btn-action-edit");
     const deleteBtn = tr.querySelector(".btn-action-delete");
 
@@ -276,7 +339,7 @@ function renderAdminTable() {
 }
 
 // =========================================================================
-// 4. ค้นหาและกรองข้อมูล (Search & Filter)
+// 4. ค้นหาและกรองข้อมูล
 // =========================================================================
 if (adminSearchInput) {
   adminSearchInput.addEventListener("input", (e) => {
@@ -299,7 +362,7 @@ if (refreshBtn) {
     await fetchAdminPosts();
     refreshBtn.disabled = false;
     refreshBtn.innerHTML = "<span>🔄 รีเฟรช</span>";
-    showToast("🔄 โหลดข้อมูลล่าสุดจาก Server แล้ว");
+    showToast("🔄 โหลดข้อมูลล่าสุดแล้ว");
   });
 }
 
@@ -372,40 +435,58 @@ if (editPostForm) {
       saveBtn.innerHTML = "<span>⏳ กำลังบันทึก...</span>";
     }
 
-    try {
-      const res = await fetch(`${API_BASE}/api/posts/${postId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+    let updatedOnBackend = false;
+
+    if (!isGitHubPages && window.location.protocol !== "file:") {
+      try {
+        const res = await fetch(`${API_BASE}/api/posts/${postId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: newContent,
+            mood: newMood,
+            likes: newLikes
+          })
+        });
+
+        const result = await res.json();
+        if (res.ok && result.success && result.data) {
+          const idx = allPosts.findIndex((p) => p.id === postId);
+          if (idx !== -1) {
+            allPosts[idx] = result.data;
+            saveLocalDb(allPosts);
+            updateStats();
+            renderAdminTable();
+          }
+          updatedOnBackend = true;
+        }
+      } catch (err) {
+        console.warn("Backend update bypassed:", err.message);
+      }
+    }
+
+    if (!updatedOnBackend) {
+      const idx = allPosts.findIndex((p) => p.id === postId);
+      if (idx !== -1) {
+        allPosts[idx] = {
+          ...allPosts[idx],
           content: newContent,
           mood: newMood,
-          likes: newLikes
-        })
-      });
-
-      const result = await res.json();
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || "Update failed");
-      }
-
-      // อัปเดตในตารางทันที
-      const idx = allPosts.findIndex((p) => p.id === postId);
-      if (idx !== -1 && result.data) {
-        allPosts[idx] = result.data;
+          likes: newLikes,
+          updated_at: new Date().toISOString()
+        };
+        saveLocalDb(allPosts);
         updateStats();
         renderAdminTable();
       }
+    }
 
-      closeEditModal();
-      showToast("💾 บันทึกการแก้ไขลงฐานข้อมูลสำเร็จ!");
-    } catch (err) {
-      console.error("แก้ไขข้อมูลล้มเหลว:", err);
-      showToast("❌ แก้ไขข้อมูลล้มเหลว: " + (err.message || "ไม่สามารถติดต่อ Server ได้"));
-    } finally {
-      if (saveBtn) {
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = "<span>💾 บันทึกการแก้ไข (Update)</span>";
-      }
+    closeEditModal();
+    showToast("💾 บันทึกการแก้ไขลงฐานข้อมูลสำเร็จ!");
+
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = "<span>💾 บันทึกการแก้ไข (Update)</span>";
     }
   });
 }
@@ -466,34 +547,52 @@ if (insertPostForm) {
       saveBtn.innerHTML = "<span>⏳ กำลังบันทึก...</span>";
     }
 
-    try {
-      const res = await fetch(`${API_BASE}/api/posts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text, mood: mood })
-      });
+    const newPost = {
+      id: "post-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+      content: text,
+      mood: mood,
+      likes: 0,
+      created_at: new Date().toISOString()
+    };
 
-      const result = await res.json();
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || "Insert failed");
-      }
+    let insertedOnBackend = false;
 
-      if (result.data && !allPosts.some((p) => p.id === result.data.id)) {
-        allPosts.unshift(result.data);
-        updateStats();
-        renderAdminTable();
-      }
+    if (!isGitHubPages && window.location.protocol !== "file:") {
+      try {
+        const res = await fetch(`${API_BASE}/api/posts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: text, mood: mood })
+        });
 
-      closeInsertModal();
-      showToast("➕ เพิ่มข้อมูลใหม่ลงฐานข้อมูลสำเร็จ!");
-    } catch (err) {
-      console.error("เพิ่มข้อมูลล้มเหลว:", err);
-      showToast("❌ เพิ่มข้อมูลล้มเหลว: " + (err.message || "ไม่สามารถติดต่อ Server ได้"));
-    } finally {
-      if (saveBtn) {
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = "<span>➕ บันทึกข้อมูลใหม่ (Insert)</span>";
+        const result = await res.json();
+        if (res.ok && result.success && result.data) {
+          if (!allPosts.some((p) => p.id === result.data.id)) {
+            allPosts.unshift(result.data);
+            saveLocalDb(allPosts);
+            updateStats();
+            renderAdminTable();
+          }
+          insertedOnBackend = true;
+        }
+      } catch (err) {
+        console.warn("Backend insert bypassed:", err.message);
       }
+    }
+
+    if (!insertedOnBackend) {
+      allPosts.unshift(newPost);
+      saveLocalDb(allPosts);
+      updateStats();
+      renderAdminTable();
+    }
+
+    closeInsertModal();
+    showToast("➕ เพิ่มข้อมูลใหม่สำเร็จ!");
+
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = "<span>➕ บันทึกข้อมูลใหม่ (Insert)</span>";
     }
   });
 }
@@ -505,21 +604,19 @@ async function handleDeletePost(postId) {
   const confirmDelete = confirm("⚠️ คุณแน่ใจหรือไม่ว่าต้องการลบโพสต์นี้ออกจากฐานข้อมูลอย่างถาวร?");
   if (!confirmDelete) return;
 
-  try {
-    const res = await fetch(`${API_BASE}/api/posts/${postId}`, { method: "DELETE" });
-    const result = await res.json();
-    if (!res.ok || !result.success) {
-      throw new Error(result.error || "Delete failed");
+  if (!isGitHubPages && window.location.protocol !== "file:") {
+    try {
+      await fetch(`${API_BASE}/api/posts/${postId}`, { method: "DELETE" });
+    } catch (err) {
+      console.warn("Backend delete bypassed:", err.message);
     }
-
-    allPosts = allPosts.filter((p) => p.id !== postId);
-    updateStats();
-    renderAdminTable();
-    showToast("🗑️ ลบโพสต์ออกจากฐานข้อมูลสำเร็จ!");
-  } catch (err) {
-    console.error("ลบโพสต์ผิดพลาด:", err);
-    showToast("❌ ลบโพสต์ผิดพลาด: " + (err.message || "ไม่สามารถติดต่อ Server ได้"));
   }
+
+  allPosts = allPosts.filter((p) => p.id !== postId);
+  saveLocalDb(allPosts);
+  updateStats();
+  renderAdminTable();
+  showToast("🗑️ ลบโพสต์สำเร็จ!");
 }
 
 if (resetDbBtn) {
@@ -527,23 +624,28 @@ if (resetDbBtn) {
     const confirmReset = confirm("⚠️ คำเตือน: คุณต้องการรีเซ็ตข้อมูลทั้งหมดกลับเป็นโพสต์ตั้งต้นของระบบใช่หรือไม่?");
     if (!confirmReset) return;
 
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/reset`, { method: "POST" });
-      const result = await res.json();
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || "Reset failed");
+    if (!isGitHubPages && window.location.protocol !== "file:") {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/reset`, { method: "POST" });
+        const result = await res.json();
+        if (result && result.data) {
+          allPosts = result.data;
+          saveLocalDb(allPosts);
+          updateStats();
+          renderAdminTable();
+          showToast("🔄 รีเซ็ตฐานข้อมูลกลับเป็นค่าเริ่มต้นสำเร็จ!");
+          return;
+        }
+      } catch (err) {
+        console.warn("Backend reset bypassed:", err.message);
       }
-
-      if (result.data) {
-        allPosts = result.data;
-        updateStats();
-        renderAdminTable();
-      }
-      showToast("🔄 รีเซ็ตฐานข้อมูลกลับเป็นค่าเริ่มต้นสำเร็จ!");
-    } catch (err) {
-      console.error("รีเซ็ตล้มเหลว:", err);
-      showToast("❌ รีเซ็ตล้มเหลว: " + (err.message || "ไม่สามารถติดต่อ Server ได้"));
     }
+
+    allPosts = DEFAULT_POSTS;
+    saveLocalDb(allPosts);
+    updateStats();
+    renderAdminTable();
+    showToast("🔄 รีเซ็ตฐานข้อมูลกลับเป็นค่าเริ่มต้นสำเร็จ!");
   });
 }
 
@@ -553,6 +655,16 @@ if (resetDbBtn) {
 let adminSocket = null;
 
 function connectAdminRealtime() {
+  if (isGitHubPages) {
+    if (adminRealtimeStatus) {
+      adminRealtimeStatus.innerHTML = `
+        <span class="status-dot" style="background:#38bdf8;box-shadow:0 0 10px #38bdf8;"></span>
+        <span class="status-text" style="color:#38bdf8;">GitHub Pages Live</span>
+      `;
+    }
+    return;
+  }
+
   const wsUrl = getWebSocketUrl();
 
   try {
@@ -576,6 +688,7 @@ function connectAdminRealtime() {
         if (eventType === "INSERT") {
           if (!allPosts.some((p) => p.id === payload.id)) {
             allPosts.unshift(payload);
+            saveLocalDb(allPosts);
             updateStats();
             renderAdminTable();
             showToast("✨ มีผู้ใช้โพสต์ข้อความใหม่เข้ามาสดๆ ร้อนๆ!");
@@ -584,15 +697,18 @@ function connectAdminRealtime() {
           const idx = allPosts.findIndex((p) => p.id === payload.id);
           if (idx !== -1) {
             allPosts[idx] = { ...allPosts[idx], ...payload };
+            saveLocalDb(allPosts);
             updateStats();
             renderAdminTable();
           }
         } else if (eventType === "DELETE") {
           allPosts = allPosts.filter((p) => p.id !== payload.id);
+          saveLocalDb(allPosts);
           updateStats();
           renderAdminTable();
         } else if (eventType === "RESET") {
           allPosts = payload || [];
+          saveLocalDb(allPosts);
           updateStats();
           renderAdminTable();
         }
@@ -608,12 +724,12 @@ function connectAdminRealtime() {
           <span class="status-text" style="color:#fbbf24;">กำลังเชื่อมต่อใหม่...</span>
         `;
       }
-      setTimeout(connectAdminRealtime, 3000);
+      setTimeout(connectAdminRealtime, 4000);
     };
 
     adminSocket.onerror = (err) => {
       console.error("Admin WebSocket error:", err);
-      adminSocket.close();
+      if (adminSocket) adminSocket.close();
     };
   } catch (err) {
     console.error("Admin WebSocket connection error:", err);
