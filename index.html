@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MoodWall — กระดานระบายอารมณ์แบบ Realtime</title>
-  <meta name="description" content="พื้นที่ปลอดภัยสำหรับระบายความรู้สึกและอารมณ์ของคุณ ไม่ระบุตัวตน อัปเดตทันทีแบบ Realtime ด้วย Supabase">
+  <meta name="description" content="พื้นที่ปลอดภัยสำหรับระบายความรู้สึกและอารมณ์ของคุณ ไม่ระบุตัวตน อัปเดตทันทีแบบ Realtime">
   
   <!-- Google Fonts: Outfit (English) + Noto Sans Thai -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
   
   <!-- Custom Styles -->
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2.2">
 </head>
 <body>
   <!-- Ambient background glowing blobs -->
@@ -35,7 +35,7 @@
           <span class="status-dot"></span>
           <span class="status-text">Realtime Live</span>
         </div>
-        <button class="btn btn-primary" id="openModalBtn">
+        <button class="btn btn-primary" id="openModalBtn" data-open-modal="true">
           <span>+ โพสต์ระบายความรู้สึก</span>
         </button>
         <a href="admin.html" class="btn btn-secondary nav-admin-btn" title="ระบบจัดการหลังบ้าน">
@@ -52,6 +52,12 @@
       <h2>พื้นที่ปลอดภัย สำหรับทุกความรู้สึกวันนี้</h2>
       <p>เขียนอะไรก็ได้ที่คุณอยากระบาย ไม่ระบุตัวตน ไม่ต้องล็อกอิน ข้อมูลส่งตรงและอัปเดตบนหน้าจอของทุกคนแบบ <strong>Realtime</strong> ทันทีโดยไม่ต้องกดรีเฟรช</p>
       
+      <div style="margin: 20px 0 28px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+        <button class="btn btn-primary btn-hero-cta" id="heroOpenModalBtn" data-open-modal="true">
+          <span>✍️ เขียนระบายความรู้สึกของคุณเลย</span>
+        </button>
+      </div>
+
       <!-- Mood Filter Pills -->
       <div class="mood-filters" id="moodFilters">
         <button class="filter-btn active" data-mood="all">🌟 ทั้งหมด</button>
@@ -77,11 +83,19 @@
       <div class="empty-icon">🌱</div>
       <h3>ยังไม่มีโพสต์ในหมวดหมู่นี้</h3>
       <p>มาเป็นคนแรกที่โพสต์ระบายความรู้สึกกันเถอะ!</p>
+      <button class="btn btn-primary" id="emptyOpenModalBtn" data-open-modal="true" style="margin-top: 14px;">
+        <span>+ โพสต์เป็นคนแรก</span>
+      </button>
     </div>
 
     <!-- Posts Grid -->
     <div class="posts-grid" id="postsGrid"></div>
   </main>
+
+  <!-- Floating Action Button -->
+  <button class="floating-post-btn" id="fabOpenModalBtn" data-open-modal="true" title="โพสต์ระบายความรู้สึก">
+    <span>✍️ โพสต์เลย</span>
+  </button>
 
   <!-- Footer -->
   <footer class="footer">
@@ -91,9 +105,9 @@
         <a href="admin.html" class="github-link" style="color: #a855f7; border-color: rgba(168,85,247,0.3);">
           <span>⚙️ จัดการระบบหลังบ้าน</span>
         </a>
-        <a href="https://github.com" target="_blank" class="github-link">
+        <a href="https://github.com/forQodeding/moodwall" target="_blank" class="github-link">
           <svg height="18" viewBox="0 0 16 16" width="18" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
-          <span>Deploy to GitHub</span>
+          <span>GitHub Repository</span>
         </a>
       </div>
     </div>
@@ -104,7 +118,7 @@
     <div class="modal">
       <div class="modal-header">
         <h3>✨ โพสต์ระบายความรู้สึก</h3>
-        <button class="close-btn" id="closeModalBtn">&times;</button>
+        <button class="close-btn" id="closeModalBtn" title="ปิด">&times;</button>
       </div>
       <form id="confessionForm" class="modal-body">
         <div class="form-group">
@@ -143,7 +157,7 @@
           <textarea 
             id="confessionText" 
             rows="4" 
-            placeholder="เขียนระบายตรงนี้ได้เลย ไม่มีใครรู้ว่าคุณเป็นคนโพสต์..." 
+            placeholder="เขียนระบายตรงนี้ได้เลย ไม่มีใครรู้ว่าคุณเป็นคนโพสต์... (กด Ctrl+Enter เพื่อส่งได้)" 
             maxlength="280"
             required></textarea>
           <div class="char-counter">0 / 280 ตัวอักษร</div>
@@ -166,6 +180,6 @@
   </div>
 
   <!-- App Script -->
-  <script src="script.js"></script>
+  <script src="script.js?v=2.2"></script>
 </body>
 </html>

@@ -63,7 +63,6 @@ const emptyState = document.getElementById("emptyState");
 const realtimeStatus = document.getElementById("realtimeStatus");
 
 const modalBackdrop = document.getElementById("modalBackdrop");
-const openModalBtn = document.getElementById("openModalBtn");
 const closeModalBtn = document.getElementById("closeModalBtn");
 const cancelBtn = document.getElementById("cancelBtn");
 const confessionForm = document.getElementById("confessionForm");
@@ -274,7 +273,9 @@ moodFilters.addEventListener("click", (e) => {
 // =========================================================================
 function openModal() {
   modalBackdrop.classList.remove("hidden");
-  confessionText.focus();
+  setTimeout(() => {
+    confessionText.focus();
+  }, 50);
 }
 
 function closeModal() {
@@ -289,12 +290,23 @@ function closeModal() {
   updateCharCounter();
 }
 
-openModalBtn.addEventListener("click", openModal);
+// ผูก Event ปุ่มเปิด Modal ทั้งหมด (Navbar, Hero CTA, Empty state, Floating FAB)
+document.querySelectorAll('[data-open-modal="true"]').forEach((btn) => {
+  btn.addEventListener("click", openModal);
+});
+
 closeModalBtn.addEventListener("click", closeModal);
 cancelBtn.addEventListener("click", closeModal);
 
 modalBackdrop.addEventListener("click", (e) => {
   if (e.target === modalBackdrop) closeModal();
+});
+
+// ปิดด้วยปุ่ม Esc
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !modalBackdrop.classList.contains("hidden")) {
+    closeModal();
+  }
 });
 
 modalMoodSelector.addEventListener("click", (e) => {
@@ -308,6 +320,14 @@ modalMoodSelector.addEventListener("click", (e) => {
 });
 
 confessionText.addEventListener("input", updateCharCounter);
+
+// ส่งฟอร์มด้วยปุ่ม Ctrl+Enter / Cmd+Enter
+confessionText.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    e.preventDefault();
+    confessionForm.requestSubmit();
+  }
+});
 
 function updateCharCounter() {
   const count = confessionText.value.length;
